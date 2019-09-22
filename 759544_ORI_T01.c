@@ -142,7 +142,7 @@ void imprimirSecundario(Is *idriver, Ir *iroute, Isd *idate, Ist *itime, int nre
 
 
 /* <<< COLOQUE AQUI OS DEMAIS PROTÓTIPOS DE FUNÇÕES >>> */
-void cadastrar([args]);
+void cadastrar(int* nregistros, Ip* chaves);
 int alterar([args]);
 int remover([args]);
 void buscar([args]);
@@ -174,8 +174,37 @@ int main()
 	}
 	criar_iprimary(iprimary, &nregistros);
 	
-	/* <<< COMPLETE AQUI A ALOCAÇÃO E CRIAÇÃO DOS INDICES SECUNDÁRIOS >>> */
+	Is *idriver = (Is *)malloc(MAX_REGISTROS * sizeof(Ip));
+	if (!idriver)
+	{
+		perror(MEMORIA_INSUFICIENTE);
+		exit(1);
+	}
+	criar_idriver(idriver, &nregistros);
 
+	Ir *iroute = (Ir *)malloc(MAX_REGISTROS * sizeof(Ir));
+	if (!iroute)
+	{
+		perror(MEMORIA_INSUFICIENTE);
+		exit(1);
+	}
+	criar_iroute(iroute, &nregistros);
+
+	Isd *idate = (Isd *)malloc(MAX_REGISTROS * sizeof(Isd));
+	if (!idate)
+	{
+		perror(MEMORIA_INSUFICIENTE);
+		exit(1);
+	}
+	criar_idate(idate, &nregistros);
+
+	Ist *itime = (Ist *)malloc(MAX_REGISTROS * sizeof(Ist));
+	if (!itime)
+	{
+		perror(MEMORIA_INSUFICIENTE);
+		exit(1);
+	}
+	criar_time(itime, &nregistros);
 
 	/* === ROTINA DE EXECUÇÃO DO PROGRAMA === */
 	int opcao = 0;
@@ -189,7 +218,7 @@ int main()
 			/* cadastrar */
 
 			/* <<< COLOQUE AQUI A CHAMADA PARA A FUNCAO CADASTRAR >>> */
-			//cadastrar([args]);
+			cadastrar(&nregistros, iprimary);
 			
 			break;
 
@@ -258,8 +287,13 @@ int main()
 		case 9:
 			/*	liberar memória e finalizar o programa */
 			//finaliza([args]);
+
 			/* <<< LIBERE A MEMÓRIA DAS ESTRUTURAS CRIADAS >>> */
-			
+			free(iprimary);
+			free(idriver);
+			free(iroute);
+			free(idate);
+			free(itime);
 			return (0);
 
 			break;
@@ -414,32 +448,68 @@ void imprimirSecundario(Is *idriver, Ir *iroute, Isd *idate, Ist *itime, int nre
 	}
 }
 
-/* <<< IMPLEMENTE AQUI AS DEMAIS FUNÇÕES >>> */
-
-
 /* (Re)faz o índice respectivo */
 void criar_iprimary(Ip *indice_primario, int *nregistros)
 {
-
+	
 }
 
 /* Realiza os scanfs na struct Carona*/
 void ler_entrada(char *registro, Carona *novo)
 {
-
+	scanf("%[^\n]", novo->nome);
+	scanf("%[^\n]", novo->genero);
+	scanf("%[^\n]", novo->nascimento);
+	scanf("%[^\n]", novo->celular);
+	scanf("%[^\n]", novo->veiculo);
+	scanf("%[^\n]", novo->placa);
+	scanf("%[^\n]", novo->trajeto);
+	scanf("%[^\n]", novo->data);
+	scanf("%[^\n]", novo->hora);
+	scanf("%[^\n]", novo->valor);
+	scanf("%[^\n]", novo->vagas);
 }
 
 /* Gera a chave para determinada struct de carona */ 
 void gerarChave(Carona *novo)
 {
-
+	novo->pk[0] = novo->pk[0];
+	novo->pk[1] = novo->placa[0];
+	novo->pk[2] = novo->placa[1];
+	novo->pk[3] = novo->placa[2];
+	novo->pk[4] = novo->data[0];
+	novo->pk[5] = novo->data[1];
+	novo->pk[6] = novo->data[3];
+	novo->pk[7] = novo->data[4];
+	novo->pk[8] = novo->hora[0];
+	novo->pk[9] = novo->hora[1];
+	novo->pk[10] = '\0';
 }
 
-void cadastrar([args])
+void cadastrar(int* nregistros, Ip* chaves)
 {
-	ler_entrada()
+	Carona* novo = (Carona*) malloc(sizeof(Carona));
+	ler_entrada('\0', novo);
+	gerarChave(novo);
+	if(bsearch(&novo->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*,const void*)) strcmp))
+	{
+		printf(ERRO_PK_REPETIDA, novo->pk);
+		free(novo);
+		return;
+	}
+	inserir_arquivo(novo, nregistros);
+	nregistros++;
+	free(novo);
 }
 
+inserir_arquivo(Carona* novo, int nregistros)
+{
+	//Nome, modelo e trajeto variável
+	char* inicio = ARQUIVO + (nregistros * 256);
+	sprintf("%s@%s@%s@%s", novo->nome, )
+}
+
+/*
 int alterar([args])
 {
 
@@ -468,4 +538,4 @@ void liberar([args])
 void finaliza([args])
 {
 
-}
+}*/
