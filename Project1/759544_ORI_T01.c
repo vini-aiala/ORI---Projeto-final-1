@@ -645,15 +645,16 @@ void cadastrar(int* nregistros, int* ntrajetos, Ip* chaves, Is *idriver, Ir *iro
 	char* p = strtok(novo->trajeto, "|");
 	while (p)
 	{
-		Ir* indice = bsearch(p, iroute, *ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
-		if (indice == NULL)
+		Ir* existe = bsearch(p, iroute, *ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
+		if (!existe)
 		{
 			//Caso a chave nao exista, insere o novo trajeto na lista
 			sprintf(iroute[*ntrajetos].trajeto, "%s", p);
-			indice = &(iroute[*ntrajetos]);
 			(*ntrajetos)++;
+			qsort(iroute, *ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
 		}
 
+		Ir* indice = bsearch(p, iroute, *ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
 		//Insere na list
 		ll* no = indice->lista;
 		ll* ant = NULL;
@@ -707,7 +708,8 @@ void cadastrar(int* nregistros, int* ntrajetos, Ip* chaves, Is *idriver, Ir *iro
 	qsort(idriver, *nregistros, sizeof(Is), (int(*)(const void*, const void*)) comparaNome);
 	qsort(idate, *nregistros, sizeof(Isd), (int(*)(const void*, const void*)) comparaData);
 	qsort(itime, *nregistros, sizeof(Ist), (int(*)(const void*, const void*)) comparaHora);
-	qsort(iroute, *ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) strcmp);
+	
+	
 
 	free(novo);
 }
@@ -743,8 +745,7 @@ int alterar(Ip* chaves, int nregistros)
 	do {
 		fgets(buffer, 121, stdin);
 		sscanf(buffer, "%2[^\n]s", corte);
-		printf(CAMPO_INVALIDO);
-		return 0;
+		//printf(CAMPO_INVALIDO);
 	} while (strlen(corte) != 1 || corte[0] < '0' || corte[0] > '9');
 
 	Carona atualizado = recuperar_registro(pk_encontrado->rrn);
@@ -1096,6 +1097,9 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 					printf("\n");
 			}
 		}
+		else {
+			printf(REGISTRO_N_ENCONTRADO);
+		}
 		break;
 	case 2:
 		if (ntrajetos > 0)
@@ -1107,6 +1111,9 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 				if (i + 1 < ntrajetos)
 					printf("\n");
 			}
+		}
+		else {
+			printf(REGISTRO_N_ENCONTRADO);
 		}
 		break;
 	case 3:
@@ -1120,6 +1127,9 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 				if (i + 1 < nregistros)
 					printf("\n");
 			}
+		}
+		else {
+			printf(REGISTRO_N_ENCONTRADO);
 		}
 		break;
 	case 4:
@@ -1143,6 +1153,9 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			}
 
 			free(caronas);
+		}
+		else {
+			printf(REGISTRO_N_ENCONTRADO);
 		}
 		break;
 	case 5:
@@ -1171,6 +1184,9 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 					printf("\n");
 			}
 			free(caronas);
+		}
+		else {
+			printf(REGISTRO_N_ENCONTRADO);
 		}
 		break;
 	default:
