@@ -622,7 +622,7 @@ void cadastrar(int* nregistros, int* ntrajetos, Ip* chaves, Is *idriver, Ir *iro
 	gerarChave(novo);
 
 	//Busca se nn existe chave repetida
-	if(bsearch(&novo->pk, chaves, *nregistros, sizeof(Ip), (int(*)(const void*,const void*)) strcmp))
+	if(bsearch(novo->pk, chaves, *nregistros, sizeof(Ip), (int(*)(const void*,const void*)) strcmp))
 	{
 		printf(ERRO_PK_REPETIDA, novo->pk);
 		free(novo);
@@ -668,7 +668,7 @@ void cadastrar(int* nregistros, int* ntrajetos, Ip* chaves, Is *idriver, Ir *iro
 		strcpy(node->pk, novo->pk);
 
 		if (no) {
-			while (strcmp(no->pk, novo->pk) < 0)
+			while (strcmp(no->pk, novo->pk) < 0 && no)
 			{
 				ant = no;
 				no = no->prox;
@@ -865,6 +865,7 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	fgets(buffer, 121, stdin);
 	sscanf(buffer, "%1[^\n]s", opcaostr);
 	opcao = atoi(opcaostr);
+
 	switch (opcao)
 	{
 	case 1:
@@ -934,15 +935,28 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 		fgets(buffer, 121, stdin);
 		sscanf(buffer, "%8[^\n]s", data);
 
-		Ir* local_encontrado = bsearch(local, iroute, nregistros, sizeof(Ir), (int(*)(const void*, const void*)) strcmp);
-		ll* lista = local_encontrado->lista;
-		while (lista)
+		Ir* local_encontrado = bsearch(local, iroute, ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
+		if(local_encontrado)
 		{
-			Ip* pk_encontrado = bsearch(lista->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-			Carona car = recuperar_registro(pk_encontrado->rrn);
-			if (!strcmp(car.data, data))
-				imprimirCarona(car);
-			lista = lista->prox;
+			int flag = 1;
+			ll* lista = local_encontrado->lista;
+			while (lista && flag)
+			{
+				Ip* pk_encontrado = bsearch(lista->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
+				Carona car = recuperar_registro(pk_encontrado->rrn);
+				if (!strcmp(car.data, data))
+				{
+					imprimirCarona(car);
+					flag = 0;
+				}
+				lista = lista->prox;
+			}
+			if (flag == 1)
+			{
+				printf(REGISTRO_N_ENCONTRADO);
+			}
+		} else {
+			printf(REGISTRO_N_ENCONTRADO);
 		}
 		break;
 	}
@@ -1090,6 +1104,8 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			{
 				ll* lista = iroute[i].lista;
 				listar_trajetos(lista, chaves, nregistros);
+				if (i + 1 < ntrajetos)
+					printf("\n");
 			}
 		}
 		break;
@@ -1125,15 +1141,17 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 				if (i + 1 < num_elem)
 					printf("\n");
 			}
+
+			free(caronas);
 		}
 		break;
 	case 5:
 		if(nregistros > 0)
 		{ 
 			Carona* caronas = (Carona*)malloc(sizeof(Carona) * nregistros);
-			int num_elem = 0;
-			for (int i = 0; i < nregistros; i++)
+			for (int i = 0; i < ntrajetos; i++)
 			{
+				int num_elem = 0;
 				ll* lista = iroute[i].lista;
 				while (lista)
 				{
@@ -1149,9 +1167,10 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 					if (j + 1 < num_elem)
 						printf("\n");
 				}
-				if (i + 1 < nregistros)
+				if (i + 1 < ntrajetos)
 					printf("\n");
 			}
+			free(caronas);
 		}
 		break;
 	default:
