@@ -773,83 +773,7 @@ int remover(Ip* chaves, Is* idriver, Ir* iroute, Isd* idate, Ist* itime, int* nr
 	ARQUIVO[pk_encontrado->rrn] = '*';
 	ARQUIVO[pk_encontrado->rrn + 1] = '|';
 
-	Carona carona = recuperar_registro(pk_encontrado->rrn);
-	//para remover coloca um ascii alto na pk e ordena, aí ele vai pro final e quando diminuir um no nregistros ele vai ser sobrescrito
-	Is* nome_encontrado = bsearch(carona.nome, idriver, *nregistros, sizeof(Is), (int(*)(const void*, const void*))comparaNome);
-	Isd* data_encontrada = bsearch(carona.data, idate, *nregistros, sizeof(Is), (int(*)(const void*, const void*))comparastrData);
-	Ist* hora_encontrada = bsearch(carona.hora, itime, *nregistros, sizeof(Is), (int(*)(const void*, const void*))comparaHora);
-
-	int flag1, flag2, flag3;
-
-	do {
-		flag1 = strcmp(nome_encontrado->pk, codigo);
-		if (flag1 > 0)
-			nome_encontrado -= sizeof(Is);
-		else if (flag1 < 0)
-			nome_encontrado += sizeof(Is);
-	} while (!flag1);
-
-	do {
-		flag2 = strcmp(data_encontrada->pk, codigo);
-		if (flag2 > 0)
-			data_encontrada -= sizeof(Isd);
-		else if (flag2 < 0)
-			data_encontrada += sizeof(Isd);
-	} while (!flag2);
-
-	do {
-		flag3 = strcmp(hora_encontrada->pk, codigo);
-		if (flag3 > 0)
-			hora_encontrada -= sizeof(Ist);
-		else if (flag3 < 0)
-			hora_encontrada += sizeof(Ist);
-	} while (!flag3);
-
-	pk_encontrado->pk[0] = 255;
-	nome_encontrado->pk[0] = 255;
-	data_encontrada->pk[0] = 255;
-	hora_encontrada->pk[0] = 255;
-
-	qsort(chaves, *nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-	qsort(idriver, *nregistros, sizeof(Is), (int(*)(const void*, const void*)) comparaNome);
-	qsort(idate, *nregistros, sizeof(Isd), (int(*)(const void*, const void*)) comparaData);
-	qsort(itime, *nregistros, sizeof(Ist), (int(*)(const void*, const void*)) comparaHora);
-
-	//Tirar de iroute
-	char* traj = strtok(carona.trajeto, "|");
-	int encontrou = 0;
-	while (traj != NULL)
-	{
-		Ir* local_encontrado = bsearch(traj, iroute, *nregistros, sizeof(Ir), (int(*)(const void*, const void*)) strcmp);
-		ll* lista = local_encontrado->lista;
-		ll* anterior = NULL;
-		while (lista && !encontrou)
-		{
-			if (lista->pk == pk_encontrado->pk)
-			{
-				encontrou = 1;
-				ll* remover = lista;
-
-				if (anterior == NULL && lista->prox == NULL)
-				{
-					local_encontrado->lista = NULL;
-				}
-				else if (anterior == NULL)
-				{
-					local_encontrado->lista = lista->prox;
-				}
-				else {
-					anterior->prox = lista->prox;
-				}
-				anterior = lista;
-				lista = lista->prox;
-				free(remover);
-			}
-		}
-	}
-
 	pk_encontrado->rrn = -1;
-	(*nregistros)--;
 	return 1;
 }
 
@@ -1083,6 +1007,7 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	fgets(buffer, 121, stdin);
 	sscanf(buffer, "%1[^\n]s", opcaostr);
 	opcao = atoi(opcaostr);
+	//printf("OPCAO = %d\n", opcao);
 
 	switch (opcao)
 	{
@@ -1122,10 +1047,13 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			for (int i = 0; i < nregistros; i++)
 			{
 				Ip* pk_encontrado = bsearch(idriver[i].pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-				Carona car = recuperar_registro(pk_encontrado->rrn);
-				imprimirCarona(car);
-				if (i + 1 < nregistros)
-					printf("\n");
+				if (pk_encontrado->rrn != -1)
+				{
+					if (i != 0)
+						printf("\n");
+					Carona car = recuperar_registro(pk_encontrado->rrn);
+					imprimirCarona(car);
+				}
 			}
 		}
 		else {
@@ -1141,8 +1069,11 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			for (int i = 0; i < nregistros; i++)
 			{
 				Ip* pk_encontrado = bsearch(idate[i].pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-				caronas[num_elem] = recuperar_registro(pk_encontrado->rrn);
-				num_elem++;
+				if (pk_encontrado->rrn != -1)
+				{
+					caronas[num_elem] = recuperar_registro(pk_encontrado->rrn);
+					num_elem++;
+				}
 			}
 			qsort(caronas, num_elem, sizeof(Carona), (int(*)(const void*, const void*))ordenaDH);
 			for (int i = 0; i < num_elem; i++)
@@ -1169,8 +1100,11 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 				while (lista)
 				{
 					Ip* pk_encontrado = bsearch(lista->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-					caronas[num_elem] = recuperar_registro(pk_encontrado->rrn);
-					num_elem++;
+					if (pk_encontrado->rrn != -1)
+					{
+						caronas[num_elem] = recuperar_registro(pk_encontrado->rrn);
+						num_elem++;
+					}
 					lista = lista->prox;
 				}
 				qsort(caronas, num_elem, sizeof(Carona), (int(*)(const void*, const void*))ordenaDH);
@@ -1202,8 +1136,11 @@ void liberar(Ip* chaves, int nregistros)
 	//Remover no STRNCOPY e refazer indice
 	for (int i = 0; i < nregistros; i++)
 	{
-		strncat(novoarq, (ARQUIVO + chaves[i].rrn), TAM_REGISTRO);
-		chaves[i].rrn = i * TAM_REGISTRO;
+		if (chaves[i].rrn != -1)
+		{
+			strncat(novoarq, (ARQUIVO + chaves[i].rrn), TAM_REGISTRO);
+			chaves[i].rrn = i * TAM_REGISTRO;
+		}
 	}
 
 	strcpy(ARQUIVO, novoarq);
