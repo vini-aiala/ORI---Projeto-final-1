@@ -802,8 +802,11 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 		Ip* pk_encontrado = bsearch(codigo, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
 		if (pk_encontrado)
 		{
-			Carona car = recuperar_registro(pk_encontrado->rrn);
-			imprimirCarona(car);
+			if(pk_encontrado->rrn != -1)
+			{
+				Carona car = recuperar_registro(pk_encontrado->rrn);
+				imprimirCarona(car);
+			}
 		}
 		else {
 			printf(REGISTRO_N_ENCONTRADO);
@@ -826,8 +829,14 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			}
 			do {
 				Ip* pk_encontrado = bsearch(data_encontrada->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-				Carona car = recuperar_registro(pk_encontrado->rrn);
-				imprimirCarona(car);
+				if (pk_encontrado)
+				{
+					if (pk_encontrado->rrn != -1)
+					{
+						Carona car = recuperar_registro(pk_encontrado->rrn);
+						imprimirCarona(car);
+					}
+				}
 				data_encontrada += sizeof(Isd);
 			} while (data_encontrada->data == data);
 		}
@@ -868,11 +877,17 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			while (lista && flag)
 			{
 				Ip* pk_encontrado = bsearch(lista->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-				Carona car = recuperar_registro(pk_encontrado->rrn);
-				if (!strcmp(car.data, data))
+				if (pk_encontrado)
 				{
-					imprimirCarona(car);
-					flag = 0;
+					if (pk_encontrado->rrn != -1)
+					{
+						Carona car = recuperar_registro(pk_encontrado->rrn);
+						if (!strcmp(car.data, data))
+						{
+							imprimirCarona(car);
+							flag = 0;
+						}
+					}
 				}
 				lista = lista->prox;
 			}
@@ -967,8 +982,14 @@ void listar_trajetos(ll* lista, Ip* chaves, int nregistros)
 	while (lista)
 	{
 		Ip* pk_encontrado = bsearch(lista->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-		Carona car = recuperar_registro(pk_encontrado->rrn);
-		imprimirCarona(car);
+		if (pk_encontrado)
+		{
+			if (pk_encontrado->rrn != -1)
+			{
+				Carona car = recuperar_registro(pk_encontrado->rrn);
+				imprimirCarona(car);
+			}
+		}
 		lista = lista->prox;
 		if (lista != NULL)
 			printf("\n");
@@ -1016,10 +1037,13 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 		{
 			for (int i = 0; i < nregistros; i++)
 			{
-				Carona car = recuperar_registro(chaves[i].rrn);
-				imprimirCarona(car);
-				if (i + 1 < nregistros)
-					printf("\n");
+				if (chaves[i].rrn != -1)
+				{
+					Carona car = recuperar_registro(chaves[i].rrn);
+					imprimirCarona(car);
+					if (i + 1 < nregistros)
+						printf("\n");
+				}
 			}
 		}
 		else {
