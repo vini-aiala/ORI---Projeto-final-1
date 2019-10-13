@@ -134,7 +134,7 @@ int exibir_registro(int rrn);
 Carona recuperar_registro(int rrn);
 
 /* (Re)faz o índice respectivo */
-int criar_indices(int nregistros, Ip* iprimary, Is* idriver, Ir* iroute, Isd* idate, Ist* itime);
+int criar_indices(int nregistros, int ntraj, Ip* iprimary, Is* idriver, Ir* iroute, Isd* idate, Ist* itime);
 
 /* Realiza os scanfs na struct Carona*/
 void ler_entrada(char *registro, Carona *novo);
@@ -166,7 +166,7 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 
 void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, Isd* idate, Ist* itime);
 
-void liberar(Ip* chaves, int nregistros);
+void liberar(Ip* chaves, int* nregistros);
 
 int comparaNome(Is* primeiro, Is* segundo);
 
@@ -181,6 +181,8 @@ int ordenaDH(Carona* primeiro, Carona* segundo);
 int comparastrData(char* primeiro, Isd* segundo);
 
 int comparastrTraj(char* primeiro, Ir* segundo);
+
+void finaliza(Ip* iprimary, Ir* iroute, Is* idriver, Isd* idate, Ist* itime, int nregistros, int ntraj);
 /* ==========================================================================
  * ============================ FUNÇÃO PRINCIPAL ============================
  * =============================== NÃO ALTERAR ============================== */
@@ -230,7 +232,7 @@ int main()
 		perror(MEMORIA_INSUFICIENTE);
 		exit(1);
 	}
-	ntraj = criar_indices(nregistros, iprimary, idriver, iroute, idate, itime);
+	ntraj = criar_indices(nregistros, ntraj, iprimary, idriver, iroute, idate, itime);
 
 	/* === ROTINA DE EXECUÇÃO DO PROGRAMA === */
 	int opcao = 0;
@@ -284,7 +286,8 @@ int main()
 
 		case 6:
 			/*	libera espaço */
-			liberar(iprimary, nregistros);
+			liberar(iprimary, &nregistros);
+			ntraj = criar_indices(nregistros, ntraj, iprimary, idriver, iroute, idate, itime);
 
 			break;
 
@@ -306,11 +309,7 @@ int main()
 
 		case 9:
 			/*	liberar memória e finalizar o programa */
-			free(iprimary);
-			free(idriver);
-			free(iroute);
-			free(idate);
-			free(itime);
+			finaliza(iprimary, iroute, idriver, idate, itime, nregistros, ntraj);
 			return (0);
 
 			break;
@@ -469,12 +468,29 @@ void imprimirSecundario(Is *idriver, Ir *iroute, Isd *idate, Ist *itime, int nre
 }
 
 /* (Re)faz o índice respectivo */
-int criar_indices(int nregistros, Ip* iprimary, Is* idriver, Ir* iroute, Isd* idate, Ist* itime)
+int criar_indices(int nregistros, int ntraj, Ip* iprimary, Is* idriver, Ir* iroute, Isd* idate, Ist* itime)
 {
-	int ntrajetos = 0;
 	//Verifica se nn tá vazio
 	if (nregistros == 0)
 		return 0;
+	
+	int ntrajetos = 0;
+
+	ll* no;
+	ll* aux;
+	for (int i = 0; i < ntraj; i++)
+	{
+		no = iroute[i].lista;
+		while (no)
+		{
+			//printf("%s\n", no->pk);
+			aux = no;
+			no = no->prox;
+			free(aux);
+		}
+		iroute[i].lista = NULL;
+	}
+
 
 	for (int i = 0; i < nregistros; i++)
 	{
@@ -482,67 +498,73 @@ int criar_indices(int nregistros, Ip* iprimary, Is* idriver, Ir* iroute, Isd* id
 		int rrn = i * TAM_REGISTRO;
 		Carona novo = recuperar_registro(rrn);
 
-		//Gera a chave e insere no campo pk
-		gerarChave(&novo);
-
 		//Inserção nos indices
-		strcpy(iprimary[nregistros].pk, novo.pk);
-		iprimary[nregistros].rrn = rrn;
-		strcpy(idriver[nregistros].nome, novo.nome);
-		strcpy(idriver[nregistros].pk, novo.pk);
-		strcpy(idate[nregistros].data, novo.data);
-		strcpy(idate[nregistros].pk, novo.pk);
-		strcpy(itime[nregistros].hora, novo.hora);
-		strcpy(itime[nregistros].pk, novo.pk);
+		strcpy(iprimary[i].pk, novo.pk);
+		iprimary[i].rrn = rrn;
+		strcpy(idriver[i].nome, novo.nome);
+		strcpy(idriver[i].pk, novo.pk);
+		strcpy(idate[i].data, novo.data);
+		strcpy(idate[i].pk, novo.pk);
+		strcpy(itime[i].hora, novo.hora);
+		strcpy(itime[i].pk, novo.pk);
 
 		//inserir iroute em listas invertidas
 		char* p = strtok(novo.trajeto, "|");
 		while (p)
 		{
-			Ir* indice = bsearch(p, iroute, ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) strcmp);
-			if (indice == NULL)
+			Ir* existe = bsearch(p, iroute, ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
+			if (!existe)
 			{
 				//Caso a chave nao exista, insere o novo trajeto na lista
-				sprintf(iroute[ntrajetos].trajeto, "%s", novo.trajeto);
-				indice = &(iroute[ntrajetos]);
+				sprintf(iroute[ntrajetos].trajeto, "%s", p);
 				ntrajetos++;
+				qsort(iroute, ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
 			}
 
+			Ir* indice = bsearch(p, iroute, ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
 			//Insere na list
+			ll* no = indice->lista;
+			ll* ant = NULL;
 			ll* node = (ll*)malloc(sizeof(ll));
+
+			if (node == NULL)
+			{
+				perror(MEMORIA_INSUFICIENTE);
+				exit(1);
+			}
+
 			strcpy(node->pk, novo.pk);
 
-			ll* aux = indice->lista;
-			if (aux)
+			if (no) {
+				while (strcmp(no->pk, novo.pk) < 0 && no)
+				{
+					ant = no;
+					no = no->prox;
+					if (!no)
+						break;
+				}
+			}
+
+			//Se deve ser insrido antes de um no, deve definir que este é o proximo
+			if (no)
 			{
-				//Lista nn vazia
-				ll* anterior = NULL;
-
-				while (aux)
-				{
-					if (strcmp(aux->pk, novo.pk) > 0)
-					{
-						anterior = aux;
-						aux = aux->prox;
-					}
-				}
-
-				//Se tem que inserir no incio da lista
-				if (!anterior)
-				{
-					node->prox = indice->lista;
-					indice->lista = node;
-				}
-				else {
-					node->prox = anterior->prox;
-					anterior->prox = node;
-				}
+				node->prox = no;
 			}
 			else {
-				//Lista vazia
-				indice->lista = node;
 				node->prox = NULL;
 			}
+
+			//Se não for inserir na primeira posição, deve definir a nova disposição
+			if (ant)
+			{
+				ant->prox = node;
+			}
+			else {
+				indice->lista = node;
+			}
+
+			//Divide para o próximo
+			p = strtok(NULL, "|");
 		}
 	}
 
@@ -785,6 +807,7 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	char data[TAM_DATA];
 	char local[TAM_TRAJETO];
 	int opcao;
+	int imprimiu = 0;
 
 	
 	fgets(buffer, 121, stdin);
@@ -806,12 +829,9 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			{
 				Carona car = recuperar_registro(pk_encontrado->rrn);
 				imprimirCarona(car);
+				imprimiu = 1;
 			}
 		}
-		else {
-			printf(REGISTRO_N_ENCONTRADO);
-		}
-
 		break;
 	}
 	case 2:
@@ -835,13 +855,11 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 					{
 						Carona car = recuperar_registro(pk_encontrado->rrn);
 						imprimirCarona(car);
+						imprimiu = 1;
 					}
 				}
 				data_encontrada += sizeof(Isd);
 			} while (data_encontrada->data == data);
-		}
-		else {
-			printf(REGISTRO_N_ENCONTRADO);
 		}
 
 		break;
@@ -856,9 +874,7 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 		if (local_encontrado)
 		{
 			listar_trajetos(local_encontrado->lista, chaves, nregistros);
-		}
-		else {
-			printf(REGISTRO_N_ENCONTRADO);
+			imprimiu = 1;
 		}
 		break;
 	}
@@ -886,23 +902,21 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 						{
 							imprimirCarona(car);
 							flag = 0;
+							imprimiu = 1;
 						}
 					}
 				}
 				lista = lista->prox;
 			}
-			if (flag == 1)
-			{
-				printf(REGISTRO_N_ENCONTRADO);
-			}
-		} else {
-			printf(REGISTRO_N_ENCONTRADO);
 		}
 		break;
 	}
 	default:
 		break;
 	}
+
+	if (!imprimiu)
+		printf(REGISTRO_N_ENCONTRADO);
 }
 
 int comparaNome(Is* primeiro, Is* segundo)
@@ -1028,7 +1042,7 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	fgets(buffer, 121, stdin);
 	sscanf(buffer, "%1[^\n]s", opcaostr);
 	opcao = atoi(opcaostr);
-	//printf("OPCAO = %d\n", opcao);
+	//printf("OPCAO LISTAR = %d\n", opcao);
 
 	switch (opcao)
 	{
@@ -1152,22 +1166,26 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	}
 }
 
-void liberar(Ip* chaves, int nregistros)
+void liberar(Ip* chaves, int* nregistros)
 {
 	char novoarq[TAM_ARQUIVO];
 	novoarq[0] = '\0';
+	int nregarq = 0;
 
 	//Remover no STRNCOPY e refazer indice
-	for (int i = 0; i < nregistros; i++)
+	for (int i = 0; i < *nregistros; i++)
 	{
 		if (chaves[i].rrn != -1)
 		{
 			strncat(novoarq, (ARQUIVO + chaves[i].rrn), TAM_REGISTRO);
-			chaves[i].rrn = i * TAM_REGISTRO;
+			nregarq++;
 		}
 	}
 
+
 	strcpy(ARQUIVO, novoarq);
+
+	*nregistros = nregarq;
 }
 
 int ordenaDH(Carona* primeiro, Carona* segundo)
@@ -1196,4 +1214,25 @@ int ordenaDH(Carona* primeiro, Carona* segundo)
 
 	result = strcmp(primeiro->pk, segundo->pk);
 	return result;
+}
+
+void finaliza(Ip* iprimary, Ir* iroute, Is* idriver, Isd* idate, Ist* itime, int nregistros, int ntraj)
+{
+	free(iprimary);
+	free(idriver);
+	free(idate);
+	free(itime);
+	ll* no;
+	ll* aux;
+	for (int i = 0; i < ntraj; i++)
+	{
+		no = iroute[i].lista;
+		while (no)
+		{
+			aux = no;
+			no = no->prox;
+			free(aux);
+		}
+	}
+	free(iroute);
 }
