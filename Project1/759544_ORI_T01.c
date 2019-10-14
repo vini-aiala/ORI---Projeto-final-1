@@ -772,6 +772,11 @@ int alterar(Ip* chaves, int nregistros)
 		return 0;
 	}
 
+	if (pk_encontrado->rrn == -1) {
+		printf(REGISTRO_N_ENCONTRADO);
+		return 0;
+	}
+
 	do {
 		fgets(buffer, 121, stdin);
 		sscanf(buffer, "%2[^\n]s", corte);
