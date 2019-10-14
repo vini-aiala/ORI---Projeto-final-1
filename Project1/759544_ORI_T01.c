@@ -166,7 +166,7 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 
 void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, Isd* idate, Ist* itime);
 
-void liberar(Ip* chaves, int* nregistros);
+void liberar(int* nregistros);
 
 int comparaNome(Is* primeiro, Is* segundo);
 
@@ -286,7 +286,7 @@ int main()
 
 		case 6:
 			/*	libera espaço */
-			liberar(iprimary, &nregistros);
+			liberar(&nregistros);
 			ntraj = criar_indices(nregistros, ntraj, iprimary, idriver, iroute, idate, itime);
 
 			break;
@@ -473,7 +473,6 @@ int criar_indices(int nregistros, int ntraj, Ip* iprimary, Is* idriver, Ir* irou
 	//Verifica se nn tá vazio
 	if (nregistros == 0)
 		return 0;
-	
 	int ntrajetos = 0;
 
 	ll* no;
@@ -510,7 +509,7 @@ int criar_indices(int nregistros, int ntraj, Ip* iprimary, Is* idriver, Ir* irou
 
 		//inserir iroute em listas invertidas
 		char* p = strtok(novo.trajeto, "|");
-		while (p)
+		while (p != NULL)
 		{
 			Ir* existe = bsearch(p, iroute, ntrajetos, sizeof(Ir), (int(*)(const void*, const void*)) comparastrTraj);
 			if (!existe)
@@ -566,6 +565,11 @@ int criar_indices(int nregistros, int ntraj, Ip* iprimary, Is* idriver, Ir* irou
 			//Divide para o próximo
 			p = strtok(NULL, "|");
 		}
+		//Ordenar indices
+		qsort(iprimary, i + 1, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
+		qsort(idriver, i + 1, sizeof(Is), (int(*)(const void*, const void*)) comparaNome);
+		qsort(idate, i + 1, sizeof(Isd), (int(*)(const void*, const void*)) comparaData);
+		qsort(itime, i + 1, sizeof(Ist), (int(*)(const void*, const void*)) comparaHora);
 	}
 
 	//retorna numero de trajetos
@@ -644,11 +648,15 @@ void cadastrar(int* nregistros, int* ntrajetos, Ip* chaves, Is *idriver, Ir *iro
 	gerarChave(novo);
 
 	//Busca se nn existe chave repetida
-	if(bsearch(novo->pk, chaves, *nregistros, sizeof(Ip), (int(*)(const void*,const void*)) strcmp))
+	Ip* existe = bsearch(novo->pk, chaves, *nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
+	if(existe)
 	{
-		printf(ERRO_PK_REPETIDA, novo->pk);
-		free(novo);
-		return;
+		if (existe->rrn != -1)
+		{
+			printf(ERRO_PK_REPETIDA, novo->pk);
+			free(novo);
+			return;
+		}
 	}
 
 	//Escreve no arquivo
@@ -813,6 +821,7 @@ void buscar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	fgets(buffer, 121, stdin);
 	sscanf(buffer, "%1[^\n]s", opcaostr);
 	opcao = atoi(opcaostr);
+	//printf("OPCAO BUSCA = %d\n", opcao);
 
 	switch (opcao)
 	{
@@ -993,6 +1002,7 @@ int comparaTraj(Ir* primeiro, Ir* segundo)
 
 void listar_trajetos(ll* lista, Ip* chaves, int nregistros)
 {
+	int imprimiu = 0;
 	while (lista)
 	{
 		Ip* pk_encontrado = bsearch(lista->pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
@@ -1002,12 +1012,15 @@ void listar_trajetos(ll* lista, Ip* chaves, int nregistros)
 			{
 				Carona car = recuperar_registro(pk_encontrado->rrn);
 				imprimirCarona(car);
+				imprimiu = 1;
 			}
 		}
 		lista = lista->prox;
 		if (lista != NULL)
 			printf("\n");
 	}
+	if (!imprimiu)
+		printf(REGISTRO_N_ENCONTRADO);
 }
 
 void imprimirCarona(Carona car)
@@ -1085,12 +1098,15 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 			for (int i = 0; i < nregistros; i++)
 			{
 				Ip* pk_encontrado = bsearch(idriver[i].pk, chaves, nregistros, sizeof(Ip), (int(*)(const void*, const void*)) strcmp);
-				if (pk_encontrado->rrn != -1)
+				if (pk_encontrado)
 				{
-					if (i != 0)
-						printf("\n");
-					Carona car = recuperar_registro(pk_encontrado->rrn);
-					imprimirCarona(car);
+					if (pk_encontrado->rrn != -1)
+					{
+						if (i != 0)
+							printf("\n");
+						Carona car = recuperar_registro(pk_encontrado->rrn);
+						imprimirCarona(car);
+					}
 				}
 			}
 		}
@@ -1166,18 +1182,20 @@ void listar(int nregistros, int ntrajetos, Ip* chaves, Is* idriver, Ir* iroute, 
 	}
 }
 
-void liberar(Ip* chaves, int* nregistros)
+void liberar(int* nregistros)
 {
 	char novoarq[TAM_ARQUIVO];
 	novoarq[0] = '\0';
 	int nregarq = 0;
+	int rrn;
 
 	//Remover no STRNCOPY e refazer indice
 	for (int i = 0; i < *nregistros; i++)
 	{
-		if (chaves[i].rrn != -1)
+		rrn = i * TAM_REGISTRO;
+		if (ARQUIVO[rrn] != '*')
 		{
-			strncat(novoarq, (ARQUIVO + chaves[i].rrn), TAM_REGISTRO);
+			strncat(novoarq, (ARQUIVO + rrn), TAM_REGISTRO);
 			nregarq++;
 		}
 	}
